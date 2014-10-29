@@ -1,0 +1,16 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="MonoDevelop.Default" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets\GameController.cs">
+    <Files>
+      <File FileName="Assets\StartUp.cs" Line="19" Column="117" />
+      <File FileName="Assets\CubeBehavior.cs" Line="23" Column="2" />
+      <File FileName="Assets\GameController.cs" Line="54" Column="45" />
+      <File FileName="Assets\WinScript.cs" Line="24" Column="28" />
+      <File FileName="Assets\Lost.cs" Line="17" Column="3" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>

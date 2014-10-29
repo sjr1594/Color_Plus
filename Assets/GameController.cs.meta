@@ -1,0 +1,10 @@
+fileFormatVersion: 2
+guid: c6b868a7a8d48c14fa157bbad7e305d6
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences:
+  - aCube: {fileID: 100000, guid: fe7766920b9d877498cf1068dfe2ec50, type: 2}
+  - textPrefab: {fileID: 100000, guid: 6f49d5cbdada5924bbf852ff381231dc, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
