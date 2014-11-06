@@ -3,16 +3,18 @@ using System.Collections;
 
 public class GameController : MonoBehaviour
 {
-		//create a timer to keep track of the game's turns
-		public float turnTimer;
 
-		//create floats to decide how much the active cube and moused over cubes will grow
-		public float activeGrow = 1.5f;
-		public float mouseOverGrow = 1.1f;
+		//connects the cube and blank text prefabs
+		public GameObject aCube;
+		public GameObject textPrefab;
 	
 		//create an array to contain the cubes and a game object to hold the "next cube"
 		private GameObject[,] allCubes;
 		private GameObject predictorCube;
+
+		//creates two ints to control the dimensions of the grid, edit these to change the dimensions of the grid
+		public int gridHeight = 5;
+		public int gridWidth = 8;
 
 
 		//create an array of colors to be defined in the start function, and an int to hold the number of colors
@@ -29,32 +31,26 @@ public class GameController : MonoBehaviour
 		//create a Color to hold the color of the cubes while they are being placed
 		public Color cubeColor;
 
+		//create two ints to keep track of the active x and y, instantiate off grid
+		public int activeX = -4;
+		public int activeY = -4;
+	
+		//create a bool to keep track of if a cube was placed this turn
+		public bool alreadyPlaced;
+	
+		//create a bool to keep track of if there is an active cube
+		public bool activeExists;
+
 		//create two floats to control the game's allowed time and time between turns,
 		//edit these if you want to change game legnth or turn legnth
 		public float turnTime = 2;
 		public float gameTimer;
 
-		//creates two ints to control the dimensions of the grid, edit these to change the dimensions of the grid
-		public int gridHeight = 5;
-		public int gridWidth = 8;
-
-		//create two ints to keep track of the active x and y, instantiate off grid
-		public int activeX = -4;
-		public int activeY = -4;
-
-		//create a bool to keep track of if a cube was placed this turn
-		public bool alreadyPlaced;
-		
-		//create a bool to keep track of if there is an active cube
-		public bool activeExists;
+		//create a timer to keep track of the game's turns
+		public float turnTimer;
 
 		//create a color to keep track of the last color that was spawned
 		public Color oldColor;
-
-		//connects the cube and blank text prefabs
-		public GameObject aCube;
-		public GameObject textPrefab;
-
 
 		//create an int to control how many points are awarded for scoring a plus and one to control the bonus points for scoring a double plus
 		//create another int to give more points for cubes in the middle and one for points for separate partitions
@@ -63,21 +59,27 @@ public class GameController : MonoBehaviour
 		public int middlePoints = 7;
 		public int separatePoints = 8;
 
-		//create an int for lost points if the cube is destroyed
-		public int destroyedLostPoints = 1;
-			
-		//create an int that is static so it is accesible from the other scenes to control the score
-		public static int score;
-
-		//create a bool to check if the game has been lost
-		public bool lost;
-
 		//create an int to check how many turns it has been since the last turn that was scored, and set it to 0
 		public int turnMultipliercount = 0;
 
 		//create ints to control how many turns are allowed between scores to earn the bonus and how many times the bonus will multiply the points earned by
 		public int withinTurns = 5;
 		public int speedMultiplier = 2;
+
+		//create an int for lost points if the cube is destroyed
+		public int destroyedLostPoints = 1;
+			
+		//create an int that is static so it is accesible from the other scenes to control the score
+		public static int score;
+
+		//create floats to decide how much the active cube and moused over cubes will grow
+		public float activeGrow = 1.5f;
+		public float mouseOverGrow = 1.1f;
+
+		//create a bool to check if the game has been lost
+		public bool lost;
+
+		
 
 		// Use this for initialization
 		void Start ()
@@ -130,12 +132,9 @@ public class GameController : MonoBehaviour
 						numberMesh [y] = (GameObject)Instantiate (textPrefab, new Vector3 (-2, y * 2 + 0.7f, 0), Quaternion.identity);
 						//it is abs(y-gridHeight) in order to reverse the order, if i just did gridheight - 1 (-1 to compensate for the array) it would go 4 3 2 1 0
 						numberMesh [y].GetComponent<TextMesh> ().text = (Mathf.Abs (y - gridHeight)).ToString ();
-
-
-
 				}
 
-				//instantiates the cube which lets you know which color will be next and puts a mesh on top of it and a label over it
+				//instantiates the cube which lets you know which color will be next, puts a mesh on top of it and a label over it
 				predictorCube = (GameObject)Instantiate (aCube, new Vector3 (-2, 10, 0), Quaternion.identity);
 				predictorMesh = (GameObject)Instantiate (textPrefab, new Vector3 (-2.3f, 10.5f, 0), Quaternion.identity);
 				predictorMesh.GetComponent<TextMesh> ().text = " ";
@@ -146,7 +145,7 @@ public class GameController : MonoBehaviour
 				//sets activeExists to false
 				activeExists = false;
 				
-				//makes the game start during a turn instead of making the player wait 2 seconds
+				//makes the game start during a turn instead of making the player wait turntime seconds
 				ProcessNewTurn ();
 
 		}
@@ -192,13 +191,71 @@ public class GameController : MonoBehaviour
 
 		}
 
+		//this method creates a GUI.Label to display the score and timer
+		void OnGUI ()
+		{       
+				GUI.Label (new Rect (10, 380, 100, 20), "Score: " + score.ToString ());   
+		
+				//if there are less than ten seconds, turn the timer red
+				if (gameTimer < 10) {
+						GUI.contentColor = Color.red;
+				}
+				GUI.Label (new Rect (10, 400, 100, 40), "Time: " + (Mathf.Round (gameTimer * 10) / 10).ToString ());
+		
+		
+		
+		
+		}
+
 		//this method deals with everything that happens on a new turn
 		public void ProcessNewTurn ()
 		{
-				//if a cube wasnt used last turn, subtract 1 from the score up to 0
+
+		//if a cube wasnt used last turn, subtract 1 from the score up to 0, and destroy a random white cube. 
+		//If there is no white cube, lose the game
+
 				if (alreadyPlaced == false) {
 						score = Mathf.Max (0, score - destroyedLostPoints);
+			}
+ 
+		
+				if (alreadyPlaced == false && Time.time > (turnTime - 0.1f)) {
+			//check if there is a white cube to destroy
+			bool fullGrid = true;
+			for (int i = 0; i < gridWidth; i++) {
+				for (int j = 0; j < gridHeight; j++) {
+					if (allCubes [i, j].renderer.material.color == colors [5] && allCubes [i, j].renderer.enabled == true) {
+						fullGrid = false;
+					}
 				}
+			}
+			if (fullGrid == true) {
+				//application.loadlevel3 is repeated here instead of lost = true so that the game doesn't try to go through the 
+				//rest of the function before it goes to the load screen since that would cause a crash
+				Application.LoadLevel (3);
+
+					
+			}
+			// if the grid isn't full, it will look at random cubes until it finds a white one, then disable the renderer and set it to inactive
+			else {
+						int randomx, randomy;
+						bool hasDestroyed = false;
+						do {
+								randomx = Random.Range (0, gridWidth);
+								randomy = Random.Range (0, gridHeight);
+
+								if (allCubes [randomx, randomy].renderer.material.color == colors [5]) {
+
+										allCubes [randomx, randomy].renderer.material.color = colors [6];
+										allCubes [randomx, randomy].renderer.enabled = false;
+										hasDestroyed = true;
+								}
+
+						} while (hasDestroyed == false);
+			}
+						
+				}
+				
 				//if a cube was placed last turn then the predictable cube disappeared, undo this on the new turn
 				predictorCube.renderer.enabled = true;
 				predictorMesh.renderer.enabled = true;
@@ -272,6 +329,86 @@ public class GameController : MonoBehaviour
 				}
 		}
 
+		//this method processes every time a cube is clicked
+		public void ProcessClickedCube (GameObject clickedCube, int x, int y)
+		{
+		
+				//if there is no active cube and one is clicked, highlight it then set it to active and activeExists to true
+				if (allCubes [x, y].renderer.material.color != colors [5] && allCubes [x, y].renderer.material.color != colors [6] && activeExists == false) {
+						allCubes [x, y].transform.localScale = new Vector3 (activeGrow, activeGrow, activeGrow);
+						allCubes [x, y].GetComponent<CubeBehavior> ().isActive = true;
+						activeExists = true;
+						activeX = x;
+						activeY = y;
+			
+				}
+		
+		//if the player clicks an active cube, it should deactivate
+		else if (activeExists == true && allCubes [x, y].GetComponent<CubeBehavior> ().isActive) {
+						allCubes [x, y].transform.localScale = new Vector3 (1f, 1f, 1f);
+						allCubes [x, y].GetComponent<CubeBehavior> ().isActive = false;
+						activeExists = false;
+						activeX = -4;
+						activeY = -4;
+			
+				}
+		
+		
+				//if there is an active cube and a nonactive cube is clicked, check if it is adjacent (includes diagonals)
+				if (allCubes [x, y].renderer.material.color == colors [5] && activeExists == true) {
+						//check all directions, after checking if there is a cube in that location first
+						if (x > 0 && y < gridHeight - 1) {
+								if (allCubes [x - 1, y + 1].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x - 1, y + 1, x, y);
+								}
+						}
+						if (x > 0 && y > 0) {
+								if (allCubes [x - 1, y - 1].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x - 1, y - 1, x, y);
+					
+								}
+						}
+						if (x < gridWidth - 1 && y > 0) {
+								if (allCubes [x + 1, y - 1].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x + 1, y - 1, x, y);
+					
+								}
+						}
+						if (x < gridWidth - 1 && y < gridHeight - 1) {
+								if (allCubes [x + 1, y + 1].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x + 1, y + 1, x, y);
+					
+								}
+						}
+						if (y < gridHeight - 1) {
+								if (allCubes [x, y + 1].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x, y + 1, x, y);
+					
+								}
+						}
+						if (y > 0) {
+								if (allCubes [x, y - 1].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x, y - 1, x, y);
+					
+								}
+						}
+						if (x < gridWidth - 1) {
+								if (allCubes [x + 1, y].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x + 1, y, x, y);
+					
+								}
+						}
+						if (x > 0) {
+								if (allCubes [x - 1, y].GetComponent<CubeBehavior> ().isActive) {
+										ShiftCube (x - 1, y, x, y);
+					
+								}
+						}
+				}
+		
+		}
+
+
 		// this method will place the new cube in the inputted row
 		public void PlaceCube (int y, Color color)
 		{
@@ -335,85 +472,52 @@ public class GameController : MonoBehaviour
 				}
 
 		}
-
-		//this method processes every time a cube is clicked
-		public void ProcessClickedCube (GameObject clickedCube, int x, int y)
+	
+		//this method processes the mesh on top of each cube
+		void ProcessMesh (int x, int y, GameObject thisCube)
 		{
-
-				//if there is no active cube and one is clicked, highlight it then set it to active and activeExists to true
-				if (allCubes [x, y].renderer.material.color != colors [5] && allCubes [x, y].renderer.material.color != colors [6] && activeExists == false) {
-						allCubes [x, y].transform.localScale = new Vector3 (activeGrow, activeGrow, activeGrow);
-						allCubes [x, y].GetComponent<CubeBehavior> ().isActive = true;
-						activeExists = true;
-						activeX = x;
-						activeY = y;
-						
+				//set the mesh to correspond with the color
+				if (thisCube != predictorCube) {
+						if (thisCube.renderer.material.color == colors [0]) {
+								textMesh [x, y].GetComponent<TextMesh> ().text = "A";
+						}
+						if (thisCube.renderer.material.color == colors [1]) {
+								textMesh [x, y].GetComponent<TextMesh> ().text = "B";
+						}
+						if (thisCube.renderer.material.color == colors [2]) {
+								textMesh [x, y].GetComponent<TextMesh> ().text = "C";
+						}
+						if (thisCube.renderer.material.color == colors [3]) {
+								textMesh [x, y].GetComponent<TextMesh> ().text = "D";
+						}
+						if (thisCube.renderer.material.color == colors [4]) {
+								textMesh [x, y].GetComponent<TextMesh> ().text = "E";
+						}
+						if (thisCube.renderer.material.color == colors [5] || thisCube.renderer.material.color == colors [6]) {
+								textMesh [x, y].GetComponent<TextMesh> ().text = " ";
+				
+						}
+				} else {
+						if (thisCube.renderer.material.color == colors [0]) {
+								predictorMesh.GetComponent<TextMesh> ().text = "A";
+						}
+						if (thisCube.renderer.material.color == colors [1]) {
+								predictorMesh.GetComponent<TextMesh> ().text = "B";
+						}
+						if (thisCube.renderer.material.color == colors [2]) {
+								predictorMesh.GetComponent<TextMesh> ().text = "C";
+						}
+						if (thisCube.renderer.material.color == colors [3]) {
+								predictorMesh.GetComponent<TextMesh> ().text = "D";
+						}
+						if (thisCube.renderer.material.color == colors [4]) {
+								predictorMesh.GetComponent<TextMesh> ().text = "E";
+						}
+			
 				}
-
-		//if the player clicks an active cube, it should deactivate
-		else if (activeExists == true && allCubes [x, y].GetComponent<CubeBehavior> ().isActive) {
-						allCubes [x, y].transform.localScale = new Vector3 (1f, 1f, 1f);
-						allCubes [x, y].GetComponent<CubeBehavior> ().isActive = false;
-						activeExists = false;
-						activeX = -4;
-						activeY = -4;
-
-				}
-
-
-				//if there is an active cube and a nonactive cube is clicked, check if it is adjacent (includes diagonals)
-				if (allCubes [x, y].renderer.material.color == colors [5] && activeExists == true) {
-						//check all directions, after checking if there is a cube in that location first
-						if (x > 0 && y < gridHeight - 1) {
-								if (allCubes [x - 1, y + 1].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x - 1, y + 1, x, y);
-								}
-						}
-						if (x > 0 && y > 0) {
-								if (allCubes [x - 1, y - 1].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x - 1, y - 1, x, y);
-
-								}
-						}
-						if (x < gridWidth - 1 && y > 0) {
-								if (allCubes [x + 1, y - 1].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x + 1, y - 1, x, y);
-
-								}
-						}
-						if (x < gridWidth - 1 && y < gridHeight - 1) {
-								if (allCubes [x + 1, y + 1].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x + 1, y + 1, x, y);
-
-								}
-						}
-						if (y < gridHeight - 1) {
-								if (allCubes [x, y + 1].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x, y + 1, x, y);
-
-								}
-						}
-						if (y > 0) {
-								if (allCubes [x, y - 1].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x, y - 1, x, y);
-
-								}
-						}
-						if (x < gridWidth - 1) {
-								if (allCubes [x + 1, y].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x + 1, y, x, y);
-
-								}
-						}
-						if (x > 0) {
-								if (allCubes [x - 1, y].GetComponent<CubeBehavior> ().isActive) {
-										ShiftCube (x - 1, y, x, y);
-
-								}
-						}
-				}
-
+		
 		}
+
 
 		// this method moves a cube to an adjacent one
 		public void ShiftCube (int oldx, int oldy, int newx, int newy)
@@ -560,7 +664,9 @@ public class GameController : MonoBehaviour
 		public void DisableCube (int x, int y)
 		{
 				//color the cube at the specified location with the inactive color
-				allCubes [x, y].GetComponent<CubeBehavior> ().renderer.material.color = colors [6];
+				allCubes [x, y].renderer.material.color = colors [6];
+				textMesh [x, y].renderer.enabled = false;
+
 			
 				//if the cube is active, set it to inactive
 				if (allCubes [x, y].GetComponent<CubeBehavior> ().isActive == true) {
@@ -573,21 +679,7 @@ public class GameController : MonoBehaviour
 	
 		}
 
-		//this method creates a GUI.Label to display the score and timer
-		void OnGUI ()
-		{       
-				GUI.Label (new Rect (10, 380, 100, 20), "Score: " + score.ToString ());   
 
-				//if there are less than ten seconds, turn the timer red
-				if (gameTimer < 10) {
-						GUI.contentColor = Color.red;
-				}
-				GUI.Label (new Rect (10, 400, 100, 40), "Time: " + (Mathf.Round (gameTimer * 10) / 10).ToString ());
-				
-
-
-
-		}
 
 		//this method checks for if cubes are touching each other or not and gibes a bonus if the cubes are separate; it
 		void GiveSeparatePartitionBonus ()
@@ -608,50 +700,6 @@ public class GameController : MonoBehaviour
 
 		}
 
-		//this method processes the mesh on top of each cube
-		void ProcessMesh (int x, int y, GameObject thisCube)
-		{
-				//set the mesh to correspond with the color
-				if (thisCube != predictorCube) {
-						if (thisCube.renderer.material.color == colors [0]) {
-								textMesh [x, y].GetComponent<TextMesh> ().text = "A";
-						}
-						if (thisCube.renderer.material.color == colors [1]) {
-								textMesh [x, y].GetComponent<TextMesh> ().text = "B";
-						}
-						if (thisCube.renderer.material.color == colors [2]) {
-								textMesh [x, y].GetComponent<TextMesh> ().text = "C";
-						}
-						if (thisCube.renderer.material.color == colors [3]) {
-								textMesh [x, y].GetComponent<TextMesh> ().text = "D";
-						}
-						if (thisCube.renderer.material.color == colors [4]) {
-								textMesh [x, y].GetComponent<TextMesh> ().text = "E";
-						}
-						if (thisCube.renderer.material.color == colors [5] || thisCube.renderer.material.color == colors [6]) {
-								textMesh [x, y].GetComponent<TextMesh> ().text = " ";
-
-						}
-				} else {
-						if (thisCube.renderer.material.color == colors [0]) {
-								predictorMesh.GetComponent<TextMesh> ().text = "A";
-						}
-						if (thisCube.renderer.material.color == colors [1]) {
-								predictorMesh.GetComponent<TextMesh> ().text = "B";
-						}
-						if (thisCube.renderer.material.color == colors [2]) {
-								predictorMesh.GetComponent<TextMesh> ().text = "C";
-						}
-						if (thisCube.renderer.material.color == colors [3]) {
-								predictorMesh.GetComponent<TextMesh> ().text = "D";
-						}
-						if (thisCube.renderer.material.color == colors [4]) {
-								predictorMesh.GetComponent<TextMesh> ().text = "E";
-						}
-				
-				}
-
-		}
 
 
 }
